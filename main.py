@@ -4,21 +4,29 @@ import requests
 import pandas as pd
 
 
-class ActorSpider(scrapy.Spider):
-    name = "actor"
-    start_urls = ["https://en.wikipedia.org/wiki/List_of_Indian_film_actors"]
+class CelebSpider(scrapy.Spider):
+    name = "celeb"
+    start_urls = [
+            'file:///Users/<your-user-name>/<path-to-file>/data.html',
+            "https://en.wikipedia.org/wiki/List_of_Indian_film_actors",
+            "https://en.wikipedia.org/wiki/List_of_Indian_film_actresses",
+        ]
     base_url = "https://starsunfolded.com/"
 
     def parse(self, response):
+        if response.url.find("file") != -1:
+            for name in response.css(".name>h3::text").extract():
+                url = self.base_url + '-'.join(name.split()).lower()
+                print(url)
+                req = scrapy.Request(url, callback=self.parse_info)
+                yield req
         for name in response.css(".div-col>ul>li>a::text").extract():
             url = self.base_url + '-'.join(name.split()).lower()
             print(url)
             req = scrapy.Request(url, callback=self.parse_info)
-            #time.sleep(5)
             yield req
 
     def parse_info(self, response):
-        # for sel in response.css('html').extract():
         data = {}
         img_url = response.css("#single1>p>a>img::attr(src)").extract()
         data['name'] = " ".join(response.css(".title::text").extract()[0].split()[:2]) if len(response.css(".title::text").extract())>0 else None
@@ -59,19 +67,17 @@ class ActorSpider(scrapy.Spider):
         else:
             data['image_path'] = None
         yield data
-        
-
 
 
 process = CrawlerProcess(settings={
     'FEED_FORMAT': 'csv',
-    'FEED_URI': 'actors.csv'
+    'FEED_URI': 'celeb.csv'
 })
 
-process.crawl(ActorSpider)
+process.crawl(CelebSpider)
 process.start()
 
-total = 799
-df = pd.read_csv('actors.csv')
+total = 100 + 799 + 925
+df = pd.read_csv('celeb.csv')
 
 print("percentage found = {}%".format(len(df)/total))
